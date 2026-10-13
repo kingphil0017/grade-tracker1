@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student Grade Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f6f7f4;--surface:#ffffff;--ink:#1d2433;--muted:#5d6678;--line:#d9dccf;
+  --accent:#1f5fbf;--hl:#fff1b8;--good:#1d7a4d;--bad:#b3261e;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#12151c;--surface:#1b202b;--ink:#e8ebf2;--muted:#9aa3b5;--line:#2d3444;--accent:#7aa8ff;--hl:#4a3f12;--good:#58c78e;--bad:#ff8a80}
+}
+:root[data-theme="dark"]{--bg:#12151c;--surface:#1b202b;--ink:#e8ebf2;--muted:#9aa3b5;--line:#2d3444;--accent:#7aa8ff;--hl:#4a3f12;--good:#58c78e;--bad:#ff8a80}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:940px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:clamp(1.7rem,4vw,2.4rem);line-height:1.15;margin:0 0 6px;font-weight:600}
+.lede{margin:0 0 24px;color:var(--muted);max-width:62ch}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:center;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.9rem;vertical-align:bottom}
+th small,td.who small{display:block;color:var(--muted);font:400 .75rem ui-monospace,Menlo,Consolas,monospace}
+td.who,th.corner{text-align:left}
+tbody tr:last-child td{border-bottom:0}
+td.cell input{width:3.6rem;font:inherit;text-align:center;color:inherit;background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 2px}
+td.cell input:hover{border-color:var(--line)}
+td.cell input:focus-visible,button:focus-visible,.panel input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+td.hl{background:var(--hl)}
+tr.found td.who{background:var(--hl);font-weight:600}
+.hint{color:var(--muted);font-size:.85rem;margin:8px 2px 24px}
+.panels{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.panel h2{font-size:1.05rem;margin:0 0 4px;font-weight:600}
+.panel p.note{margin:0 0 12px;color:var(--muted);font-size:.85rem}
+.avg{display:grid;grid-template-columns:4.5rem 1fr 3rem;gap:8px;align-items:center;margin:6px 0;font-size:.95rem}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.avg b{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.top{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.top:last-child{border-bottom:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.panel input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:5rem}
+.panel input.wide{width:9rem}
+button{font:inherit;font-weight:500;color:#fff;background:var(--accent);border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.out{min-height:3em;margin:0}
+.ok{color:var(--good)}.err{color:var(--bad)}
+footer{margin-top:24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Student Grade Tracker</h1>
+  <p class="lede">Five students, four subjects, stored in three arrays: <code>names[]</code>, <code>subjects[]</code> and the table <code>scores[][]</code>. Edit any mark and the results update.</p>
+
+  <div class="sheet"><table id="grid"></table></div>
+  <p class="hint">Each mark is read as <code>scores[student][subject]</code>. The small numbers show the array index.</p>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Student averages</h2>
+      <p class="note">Add up one row, divide by 4.</p>
+      <div id="avgs"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Top scorer per subject</h2>
+      <p class="note">Scan down one column, keep the best.</p>
+      <div id="tops"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Read a mark by index</h2>
+      <p class="note">Direct access takes the same time for any position (O(1)).</p>
+      <div class="row">
+        <label>student <input id="ai" type="number" value="2" aria-label="Student index"></label>
+        <label>subject <input id="aj" type="number" value="2" aria-label="Subject index"></label>
+      </div>
+      <p class="out" id="accessOut"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Search by name</h2>
+      <p class="note">Linear search checks names one by one (O(n)).</p>
+      <div class="row">
+        <input id="q" class="wide" type="text" placeholder="e.g. Efua" aria-label="Student name">
+        <button id="go">Search</button>
+      </div>
+      <p class="out" id="searchOut"></p>
+    </section>
+  </div>
+
+  <footer>
+    <span>Arrays are fixed-size: 5 × 4 marks.</span>
+    <button class="ghost" id="reset">Reset sample marks</button>
+  </footer>
+</main>
+
+<script>
+const names = ["Kwame", "Ama", "Kofi", "Efua", "Yaw"];
+const subjects = ["Data Structures", "Databases", "Networks", "Maths"];
+const SAMPLE = [[78,65,82,70],[92,88,79,95],[55,60,68,48],[85,91,74,80],[62,58,71,66]];
+const scores = SAMPLE.map(r => r.slice());
+const $ = id => document.getElementById(id);
+
+function buildTable() {
+  let h = '<thead><tr><th class="corner">Student</th>';
+  for (let j = 0; j < subjects.length; j++) h += `<th>${subjects[j]}<small>[${j}]</small></th>`;
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < names.length; i++) {
+    h += `<tr data-row="${i}"><td class="who">${names[i]}<small>[${i}]</small></td>`;
+    for (let j = 0; j < subjects.length; j++) {
+      h += `<td class="cell" data-i="${i}" data-j="${j}"><input type="number" min="0" max="100" value="${scores[i][j]}" aria-label="${names[i]}, ${subjects[j]}"></td>`;
+    }
+    h += '</tr>';
+  }
+  $('grid').innerHTML = h + '</tbody>';
+}
+
+function summaries() {
+  let a = '';
+  for (let i = 0; i < names.length; i++) {
+    let total = 0;
+    for (let j = 0; j < subjects.length; j++) total += scores[i][j];
+    const avg = total / subjects.length;
+    a += `<div class="avg"><span>${names[i]}</span><span class="bar"><i style="width:${avg}%"></i></span><b>${avg.toFixed(1)}</b></div>`;
+  }
+  $('avgs').innerHTML = a;
+
+  let t = '';
+  for (let j = 0; j < subjects.length; j++) {
+    let best = 0;
+    for (let i = 1; i < names.length; i++) if (scores[i][j] > scores[best][j]) best = i;
+    t += `<div class="top"><span>${subjects[j]}</span><span><b>${names[best]}</b> (${scores[best][j]})</span></div>`;
+  }
+  $('tops').innerHTML = t;
+  lookup();
+}
+
+function lookup() {
+  document.querySelectorAll('td.hl').forEach(c => c.classList.remove('hl'));
+  const si = $('ai').value, sj = $('aj').value, out = $('accessOut');
+  if (si === '' || sj === '') { out.innerHTML = 'Enter both indexes.'; return; }
+  const i = Number(si), j = Number(sj);
+  if (!Number.isInteger(i) || !Number.isInteger(j) || i < 0 || j < 0 || i >= names.length || j >= subjects.length) {
+    out.innerHTML = `<span class="err"><code>scores[${si}][${sj}]</code> is outside the array.</span> Valid indexes are 0 to ${names.length - 1} and 0 to ${subjects.length - 1}. C++ would not stop you; here the page does.`;
+    return;
+  }
+  document.querySelector(`td.cell[data-i="${i}"][data-j="${j}"]`).classList.add('hl');
+  out.innerHTML = `<code>scores[${i}][${j}]</code> = <b>${scores[i][j]}</b> (${names[i]}, ${subjects[j]})`;
+}
+
+function search() {
+  document.querySelectorAll('tr.found').forEach(r => r.classList.remove('found'));
+  const target = $('q').value.trim().toLowerCase(), out = $('searchOut');
+  if (!target) { out.innerHTML = 'Type a name to search.'; return; }
+  let checks = 0;
+  for (let i = 0; i < names.length; i++) {
+    checks++;
+    if (names[i].toLowerCase() === target) {
+      document.querySelector(`tr[data-row="${i}"]`).classList.add('found');
+      out.innerHTML = `<span class="ok">Found ${names[i]} at index ${i}</span> after ${checks} comparison${checks > 1 ? 's' : ''}.`;
+      return;
+    }
+  }
+  out.innerHTML = `<span class="err">Not found</span> after ${checks} comparisons, the whole array.`;
+}
+
+$('grid').addEventListener('input', e => {
+  const cell = e.target.closest('td.cell');
+  if (!cell) return;
+  let v = parseInt(e.target.value, 10);
+  if (isNaN(v)) return;
+  v = Math.max(0, Math.min(100, v));
+  scores[+cell.dataset.i][+cell.dataset.j] = v;
+  summaries();
+});
+$('grid').addEventListener('change', e => {
+  const cell = e.target.closest('td.cell');
+  if (cell) e.target.value = scores[+cell.dataset.i][+cell.dataset.j];
+});
+$('ai').addEventListener('input', lookup);
+$('aj').addEventListener('input', lookup);
+$('go').addEventListener('click', search);
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+$('reset').addEventListener('click', () => {
+  for (let i = 0; i < names.length; i++) for (let j = 0; j < subjects.length; j++) scores[i][j] = SAMPLE[i][j];
+  buildTable(); summaries();
+});
+
+buildTable();
+summaries();
+</script>
+</body>
+</html>
